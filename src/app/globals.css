@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+/*
+ * Money Path — Design Tokens (Etapa 1)
+ * Paleta própria: petrol profundo (confiança, inteligência) + cobre (progresso).
+ * Distinta da identidade verde/amarela de terceiros.
+ */
+@theme {
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), var(--font-manrope), ui-sans-serif,
+    sans-serif;
+
+  /* ── Superfícies ─────────────────────────────────────────────── */
+  --color-background: #f4f3ee;
+  --color-surface: #fcfbf8;
+  --color-elevated: #fefdfa;
+
+  /* ── Texto ───────────────────────────────────────────────────── */
+  --color-text: #16262b;
+  --color-muted: #54656b;
+  --color-faint: #7f8c90;
+
+  /* ── Bordas ──────────────────────────────────────────────────── */
+  --color-border: #e4e1d5;
+  --color-border-strong: #cec9ba;
+
+  /* ── Primary (petrol) ────────────────────────────────────────── */
+  --color-primary: #14656d;
+  --color-primary-hover: #0f5159;
+  --color-primary-soft: #ecf4f4;
+  --color-primary-50: #ecf4f4;
+  --color-primary-100: #d8e9ea;
+  --color-primary-200: #aed3d6;
+  --color-primary-300: #7db6bc;
+  --color-primary-400: #4b969f;
+  --color-primary-500: #2a7982;
+  --color-primary-600: #14656d;
+  --color-primary-700: #0f5159;
+  --color-primary-800: #0d4148;
+  --color-primary-900: #0a333a;
+  --color-primary-950: #062127;
+
+  /* ── Accent (cobre) ──────────────────────────────────────────── */
+  --color-accent-100: #f7e7d8;
+  --color-accent-200: #eecdb0;
+  --color-accent-300: #e2ad80;
+  --color-accent-400: #d38c52;
+  --color-accent-500: #c06e33;
+  --color-accent-600: #9d5626;
+
+  /* ── Estados semânticos ──────────────────────────────────────── */
+  --color-success: #1c8a56;
+  --color-success-strong: #147247;
+  --color-success-soft: #e1f2e8;
+  --color-warning: #a8690c;
+  --color-warning-strong: #8b5609;
+  --color-warning-soft: #f9eed3;
+  --color-danger: #c03d36;
+  --color-danger-strong: #a12f29;
+  --color-danger-soft: #f9e6e3;
+  --color-info: #1f6e96;
+  --color-info-strong: #175a7b;
+  --color-info-soft: #e2eef5;
+
+  /* ── Padrões financeiros ─────────────────────────────────────── */
+  --color-f-income: #1c8a56; /* Receita — positivo   */
+  --color-f-expense: #c03d36; /* Despesa — negativo   */
+  --color-f-debt: #a8690c; /* Dívida — atenção     */
+  --color-f-goal: #14656d; /* Meta — progresso     */
+  --color-f-equity: #16262b; /* Patrimônio líquido   */
+  --color-f-investment: #1f6e96; /* Investimento — crescimento */
+
+  /* ── Sombras ─────────────────────────────────────────────────── */
+  --shadow-card: 0 1px 2px rgb(22 38 43 / 0.04), 0 4px 16px rgb(22 38 43 / 0.05);
+  --shadow-elevated: 0 2px 4px rgb(22 38 43 / 0.05),
+    0 12px 32px rgb(22 38 43 / 0.1);
+  --shadow-overlay: 0 24px 64px rgb(6 33 39 / 0.28);
+
+  /* ── Animações ───────────────────────────────────────────────── */
+  --animate-fade-in: fade-in 0.16s ease-out both;
+  --animate-scale-in: scale-in 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-up: slide-up 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-slide-in-right: slide-in-right 0.26s cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+  --animate-toast-in: toast-in 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96) translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background font-sans text-text antialiased;
+  }
+
+  ::selection {
+    background-color: var(--color-primary-200);
+    color: var(--color-primary-950);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
+}
+
+/* Slider (input[type=range]) — trilha preenchida via gradiente inline. */
+.mp-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-border-strong);
+  cursor: pointer;
+}
+.mp-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: var(--color-elevated);
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 1px 4px rgb(22 38 43 / 0.2);
+  transition: transform 0.12s ease;
+}
+.mp-range::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+.mp-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: var(--color-elevated);
+  border: 2px solid var(--color-primary);
+  box-shadow: 0 1px 4px rgb(22 38 43 / 0.2);
+}
+.mp-range:focus-visible {
+  outline: 2px solid var(--color-primary-500);
+  outline-offset: 4px;
+}
