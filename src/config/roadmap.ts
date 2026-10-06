@@ -16,7 +16,7 @@ export interface StageDef {
 }
 
 /** Etapa que se está ejecutando en este momento. */
-export const CURRENT_STAGE = 18;
+export const CURRENT_STAGE = 19;
 
 export const STAGES: StageDef[] = [
   { id: 0, status: "completa" },
@@ -38,4 +38,5 @@ export const STAGES: StageDef[] = [
   { id: 16, status: "completa" },
   { id: 17, status: "completa" },
   { id: 18, status: "completa" },
+  { id: 19, status: "completa" },
 ];
