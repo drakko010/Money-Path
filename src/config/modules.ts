@@ -32,6 +32,6 @@ export const MODULES: ModuleDef[] = [
   { id: "inversiones", status: "disponible", etapa: 13 },
   { id: "patrimonio", status: "disponible", etapa: 14 },
   { id: "calculadoras", status: "disponible", etapa: 15 },
-  { id: "educacion", status: "planificado", etapa: null },
+  { id: "educacion", status: "disponible", etapa: 19 },
   { id: "dashboard", status: "disponible", etapa: 6 },
 ];

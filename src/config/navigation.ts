@@ -63,7 +63,7 @@ export const NAV_ITEMS: NavItemDef[] = [
   { id: "money_path", href: "/app/money-path", section: "herramientas", protected: true },
   { id: "money_ai", href: "/app/money-ai", section: "herramientas", protected: true },
   { id: "calculadoras", href: "/app/calculadoras", section: "herramientas", moduleRef: "calculadoras" },
-  { id: "academia", href: "/app/academia", section: "herramientas", moduleRef: "educacion" },
+  { id: "academia", href: "/app/academia", section: "herramientas", protected: true, moduleRef: "educacion" },
   { id: "notificaciones", href: "/app/notificaciones", section: "cuenta" },
   { id: "configuracion", href: "/app/configuracion", section: "cuenta", protected: true },
 ];

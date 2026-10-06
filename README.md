@@ -73,17 +73,23 @@ src/
 │       ├── layout.tsx       # Sidebar + bottom nav + sessão + gate de onboarding
 │       ├── loading.tsx · not-found.tsx
 │       ├── page.tsx         # Inicio (container do dashboard)
+│       ├── academia/        # ACADEMIA (Etapa 19)
+│       │   ├── page.tsx     # Explorar: progreso, categorias, destacados, catálogo
+│       │   ├── mi-progreso/page.tsx        # Concluidos · en progreso · favoritos
+│       │   ├── categoria/[slug]/page.tsx   # Categoría + filtros
+│       │   └── contenido/[slug]/page.tsx   # Lector + acciones de avance
 │       └── resumen|presupuesto|deudas|fondo|metas|inversiones|patrimonio|
-│           money-path|money-ai|calculadoras|academia|notificaciones|
+│           money-path|money-ai|calculadoras|notificaciones|
 │           configuracion/page.tsx
 ├── components/
 │   ├── onboarding/wizard.tsx# Wizard de 10 passos + tela de resultado (Etapa 5)
 │   ├── auth/forms.tsx       # Login, registro, recuperación, reset
+│   ├── academia/            # Tarjetas, filtros, lector, acciones de progreso (Etapa 19)
 │   ├── app/                 # sidebar, mobile-nav, page-shell, session-gate, breadcrumbs, nav-icons
 │   ├── ui/                  # Design System (Etapa 1) — 20+ componentes
 │   ├── icons.tsx · wordmark.tsx · foundation-status.tsx
 │   ├── module-map.tsx · roadmap.tsx
-├── config/                  # navigation, locales (7 moedas), modules, roadmap, onboarding (Etapa 5)
+├── config/                  # navigation, locales (7 moedas), modules, roadmap, onboarding (Etapa 5), academy (Etapa 19)
 ├── db/
 │   ├── index.ts · schema.ts · seed.sql
 │   └── schema/              # MODELO DE DADOS por domínio
@@ -94,6 +100,7 @@ src/
 └── lib/
     ├── i18n/                # Dicionários tipados (es-MX base)
     ├── money/index.ts       # Núcleo monetário (centavos inteiros)
+    ├── academy.ts · academy-shared.ts   # Academia: catálogo + progreso (Etapa 19)
     ├── onboarding.ts        # Persistência do diagnóstico (Etapa 5)
     ├── auth-server.ts · auth-client.ts · auth.ts
     └── settings.ts
@@ -371,28 +378,55 @@ Implementado como o módulo **Resumen** (`/app/resumen`), a casa natural dos rel
 
 **Arquitectura:** `lib/reports.ts` (`getReportsData` coleta séries/totales/comparaciones; `buildInsights` gera insights); `components/reportes/reports-charts.tsx` (gráficos SVG server-rendered).
 
-## 22. Banco de dados e modelo (Etapas 0/3/4/5)
+## 22. Academia (Etapa 19)
 
-PostgreSQL via Drizzle ORM. Entrada única: `src/db/schema.ts`. **36 tabelas**: `currencies`; identidade (`users`, `profiles`, `financial_profiles`, `user_settings`); auth (`sessions`, `accounts`, `verifications`); categorias; movimentos (`income`, `expenses`, `recurring_transactions`, `future_receipts`, `installments`); dívidas (`debts`, `debt_payments`); ahorro (`emergency_funds`, `goals`, `goal_contributions`); investimentos; patrimônio (`assets`, `liabilities`, `net_worth_snapshots`); `budgets`; conta (`notifications`, `subscriptions`); Money AI; academia; `calculations`; **`money_path_states`** (Etapa 5); `app_settings`.
+Área educativa completa en `/app/academia`. El contenido es **global** (no pertenece a un usuario) y el progreso es **por usuario**: dos capas separadas a propósito.
 
-Convenções: UUID v4; `created_at`/`updated_at` em tudo; `numeric(18,2)` com cálculo em centavos; multi-moeda explícita (FK `currencies`); borrado suave; constraints/índices por domínio. Na Etapa 7, `expenses` ganhou `kind` (fijo/variable, índice `(user_id, kind)`) e `note`; na Etapa 8, `future_receipts` ganhou `recurring_id` (vínculo com a plantilla + anti-duplicados); na Etapa 9, `installments` ganhou `category_id` (FK a categorias de gasto) e `payment_method`; na Etapa 10, `debts` ganhou `priority` (1–3, check) e `total_installments`; na Etapa 11, `expense_categories` ganhou `is_essential` e `financial_profiles` ganhou `essential_monthly_override` (nullable); na Etapa 12, `goals` ganhou `category` (enum) e `priority` virou NOT NULL 1–3 (check); na Etapa 13, `investment_accounts` ganhou `balance` e `investments` ganhou `quantity` (18,6) e `average_price` (18,2); na Etapa 14, `assets` ganhou `valuation_source` e `external_reference`, e o enum de `liabilities` foi ajustado (financing/personal_loan/credit_card/other).
+**Categorías (8):** Finanzas personales · Presupuesto · Deudas · Ahorro · Fondo de emergencia · Inversiones · Patrimonio · Hábitos financieros. Cada una con descripción, ícono, orden editorial y estado activo.
+
+**Formatos de contenido:** guías, artículos, aulas y contenidos cortos (`academy_contents.kind = guide | article | lesson | short`; `video` queda reservado). El catálogo base trae **4 piezas por categoría (32 en total)**, cada una con resumen, nivel (básico/intermedio/avanzado), duración estimada, cuerpo en Markdown simplificado (`## títulos`, listas, pasos numerados, notas) y destacados por categoría.
+
+**Experiencia (progreso, concluidos y favoritos):**
+- Panel de progreso: avance del catálogo (%), concluidos, en progreso, favoritos y sin empezar.
+- "Continúa donde lo dejaste" — o "Empieza por aquí" cuando aún no hay nada empezado.
+- Categorías con su propio avance + catálogo con búsqueda y filtros por tipo, nivel y estado (todo por URL: `?tipo=&nivel=&estado=&q=`).
+- Lector (`/app/academia/contenido/[slug]`): avance por pasos (25/50/75/100 en guías y aulas), concluir/reiniciar, favorito, contenido de la misma categoría y navegación anterior/siguiente.
+- Mi progreso (`/app/academia/mi-progreso`): concluidos, en progreso, favoritos y pendientes, más el avance por categoría.
+
+**Datos y siembra:** el catálogo base vive en `src/config/academy.ts` y se siembra de forma **idempotente por slug** (`ensureAcademySeed`, mismo patrón bajo demanda que las recurrencias de la Etapa 8). La base de datos es la fuente de verdad: lo que ya existe nunca se sobrescribe (una edición editorial hecha en la base se conserva). Verificado: 8 categorías y 32 contenidos publicados; cargas repetidas no duplican filas.
+
+**Progreso por usuario (`academy_progress`, nueva tabla):** una única fila por (usuario, contenido) —índice único— con `status` (`pending`/`in_progress`/`completed`), `progress_pct` (0–100, check), `is_favorite`, `started_at`, `completed_at` y `last_viewed_at`. El estado se **deriva** del porcentaje (`statusForPct`) para no tener dos fuentes de verdad: favorito sin avance queda en `pending` con `is_favorite = true`.
+
+**API:** `POST /api/academia` con `open` (registrar visita), `setProgress`, `complete`, `reset` y `toggleFavorite`. Valida sesión (401), operación (400), rango del porcentaje (400) y contenido publicado (404); escribe siempre con el `user_id` de la sesión y nunca con ids del cliente.
+
+**Contenido responsable (regla de esta etapa):** no se crea contenido financiero complejo sin fuente/revisión. Todo el catálogo base es introductorio y general (conceptos, hábitos y ejercicios; sin instrumentos concretos, cifras de rendimiento ni recomendaciones personalizadas), entra con `review_status = 'pending'` y `sources = null`, y la UI lo declara: badge "Contenido base · revisión pendiente", aviso de revisión editorial y disclaimer de material educativo (no asesoría financiera personalizada).
+
+**Verificado en ejecución:** render de las cuatro rutas sin errores; progreso por pasos y conclusión (100 → `completed`, `completed_at` grabado); favoritos sin alterar el avance; filtros y búsqueda (p. ej. `tipo=short` → 1 de 4 en Presupuesto; `estado=favorite` → 2 de 32); "continúa donde lo dejaste" apuntando al contenido en progreso más reciente; aislamiento entre usuarios (dos usuarios con progreso independiente sobre la misma pieza); API 401/400/404; edición local del catálogo preservada.
+
+## 23. Banco de dados e modelo (Etapas 0/3/4/5)
+
+PostgreSQL via Drizzle ORM. Entrada única: `src/db/schema.ts`. **37 tabelas**: `currencies`; identidade (`users`, `profiles`, `financial_profiles`, `user_settings`); auth (`sessions`, `accounts`, `verifications`); categorias; movimentos (`income`, `expenses`, `recurring_transactions`, `future_receipts`, `installments`); dívidas (`debts`, `debt_payments`); ahorro (`emergency_funds`, `goals`, `goal_contributions`); investimentos; patrimônio (`assets`, `liabilities`, `net_worth_snapshots`); `budgets`; conta (`notifications`, `subscriptions`); Money AI; academia (`academy_categories`, `academy_contents`, **`academy_progress`**, Etapa 19); `calculations`; **`money_path_states`** (Etapa 5); `app_settings`.
+
+Convenções: UUID v4; `created_at`/`updated_at` em tudo; `numeric(18,2)` com cálculo em centavos; multi-moeda explícita (FK `currencies`); borrado suave; constraints/índices por domínio. Na Etapa 7, `expenses` ganhou `kind` (fijo/variable, índice `(user_id, kind)`) e `note`; na Etapa 8, `future_receipts` ganhou `recurring_id` (vínculo com a plantilla + anti-duplicados); na Etapa 9, `installments` ganhou `category_id` (FK a categorias de gasto) e `payment_method`; na Etapa 10, `debts` ganhou `priority` (1–3, check) e `total_installments`; na Etapa 11, `expense_categories` ganhou `is_essential` e `financial_profiles` ganhou `essential_monthly_override` (nullable); na Etapa 12, `goals` ganhou `category` (enum) e `priority` virou NOT NULL 1–3 (check); na Etapa 13, `investment_accounts` ganhou `balance` e `investments` ganhou `quantity` (18,6) e `average_price` (18,2); na Etapa 14, `assets` ganhou `valuation_source` e `external_reference`, e o enum de `liabilities` foi ajustado (financing/personal_loan/credit_card/other); na Etapa 19, `academy_categories` ganhou `icon`, `academy_contents` ganhou `summary`, `review_status`, `sources`, `sort_order` e `is_featured` (e o enum de `kind` passou a incluir `short`), e nasceu `academy_progress` (uma linha por usuário+conteúdo, índice único, check de `progress_pct` 0–100).
 
 ```bash
 npx drizzle-kit push                          # aplica o modelo
 psql "$DATABASE_URL" -f src/db/seed.sql       # seed de moedas (idempotente)
 ```
 
-## 23. Módulos
+O catálogo educativo da Academia não precisa de seed manual: ele é semeado de forma idempotente por slug na primeira visita às páginas do módulo (`ensureAcademySeed`, Etapa 19).
 
-Capacidades de referência (registro em `src/config/modules.ts`): Ingresos, Gastos fijos, Gastos variables, Categorías, Educación financiera (Academia) — **planificados**, aguardando suas etapas. **Disponíveis: Panel/dashboard (Etapa 6), Presupuesto (Etapa 7), Ingresos recurrentes e Cobros futuros (Etapa 8), Pagos a plazos (Etapa 9), Deudas (Etapa 10), Fondo de emergencia (Etapa 11), Metas (Etapa 12), Inversiones (Etapa 13), Patrimonio (Etapa 14), Calculadoras (Etapa 15).**
+## 24. Módulos
 
-**Diferenciais:** Money Path™ (motor de rota de ação, Etapa 16) e Money AI (assistente contextual sobre os dados do usuário, Etapa 17) — ambos implementados. A área **Resumen** foi implementada como Reports & Insights na Etapa 18.
+Capacidades de referência (registro em `src/config/modules.ts`): Ingresos, Gastos fijos, Gastos variables, Categorías — **planificados**, aguardando suas etapas. **Disponíveis: Panel/dashboard (Etapa 6), Presupuesto (Etapa 7), Ingresos recurrentes e Cobros futuros (Etapa 8), Pagos a plazos (Etapa 9), Deudas (Etapa 10), Fondo de emergencia (Etapa 11), Metas (Etapa 12), Inversiones (Etapa 13), Patrimonio (Etapa 14), Calculadoras (Etapa 15) e Educação financeira / Academia (Etapa 19).**
 
-## 24. Design System (Etapa 1)
+**Diferenciais:** Money Path™ (motor de rota de ação, Etapa 16) e Money AI (assistente contextual sobre os dados do usuário, Etapa 17) — ambos implementados. A área **Resumen** foi implementada como Reports & Insights na Etapa 18 e a **Academia** é o módulo educativo da Etapa 19.
+
+## 25. Design System (Etapa 1)
 
 Paleta própria petrol + cobre sobre superfícies cálidas (tokens `@theme`): `primary #14656d`, `primary-hover #0f5159`, `background #f4f3ee`, `surface #fcfbf8`, `elevated #fefdfa`, `text #16262b`, `muted #54656b`, `success #1c8a56`, `warning #a8690c`, `danger #c03d36`, `info #1f6e96`, `border #e4e1d5`, acento cobre. Componentes: Button, Input, Select, Checkbox, Switch, Slider, Card, Modal, Drawer, Badge, Tooltip, Dropdown, Tabs, Progress, Alert, Toast, Empty/Loading/Error states, `MoneyValue`, `Sparkline`; ícones SVG consistentes. Padrões financeiros: receita `+` verde, despesa `−` vermelha, dívida âmbar, meta petrol, patrimônio tinta, investimento azul-petróleo. Vitrine em `/design`. Mobile first.
 
-## 25. Etapas de desenvolvimento
+## 26. Etapas de desenvolvimento
 
 | Etapa | Conteúdo                                                                                     | Estado    |
 | ----- | -------------------------------------------------------------------------------------------- | --------- |
@@ -415,11 +449,12 @@ Paleta própria petrol + cobre sobre superfícies cálidas (tokens `@theme`): `p
 | 16    | Money Path™ — motor que convierte ingresos/gastos/deudas/ahorro/metas/inversiones/patrimonio en una ruta de acción (situación, prioridad, acción, impacto, próximo paso) + simulación "¿y si reduzco gastos?" | ✅ Completa |
 | 17    | Money AI — asistente contextual que responde sobre el propio dinero con datos reales: conversa, histórico, sugerencias, preguntas rápidas y cards de contexto | ✅ Completa |
 | **18** | **Reports & Insights** — implementa o módulo Resumen: informes por período (1/3/6/12 meses), comparación entre períodos e insights automáticos | ✅ Completa |
-| 19+   | Definidas e aprovadas pelo produto antes de serem construídas                                 | Por definir |
+| **19** | **Academia** — 8 categorías, 4 formatos (guías, artículos, aulas, contenidos cortos), progreso por pasos, concluidos y favoritos, catálogo con búsqueda/filtros y contenido base marcado como revisión pendiente | ✅ Completa |
+| 20+   | Definidas e aprovadas pelo produto antes de serem construídas                                 | Por definir |
 
-**Etapa atual: 18 — Reports & Insights (concluída).** Nenhuma etapa seguinte foi iniciada.
+**Etapa atual: 19 — Academia (concluída).** Nenhuma etapa seguinte foi iniciada.
 
-## 26. Funcionalidades concluídas
+## 27. Funcionalidades concluídas
 
 **Etapa 0 — Fundação:** i18n tipado `es-MX`; núcleo monetário em centavos; registro locales/moedas; `app_settings`; painel de verificação em vivo; healthcheck real.
 
@@ -573,15 +608,29 @@ Paleta própria petrol + cobre sobre superfícies cálidas (tokens `@theme`): `p
 - ✅ Tudo server-rendered; sem dados → estado vazio (nunca inventa).
 - ✅ Proteção: sem sessão o conteúdo não renderiza (gate híbrido).
 
-## 27. Funcionalidades pendentes
+**Etapa 19 — Academia (área educacional):**
 
-- Implementação dos módulos restantes sobre o modelo de dados (academia, notificaciones, configuración) — aguardando suas etapas.
+- ✅ 8 categorías con descripción, ícono y orden editorial: Finanzas personales, Presupuesto, Deudas, Ahorro, Fondo de emergencia, Inversiones, Patrimonio y Hábitos financieros.
+- ✅ 4 formatos de contenido (guía, artículo, aula y contenido corto) con catálogo base de 32 piezas (4 por categoría), nivel, duración estimada y cuerpo en Markdown simplificado.
+- ✅ Experiencia de progreso: avance del catálogo, concluidos, en progreso, favoritos y pendientes; "Continúa donde lo dejaste" / "Empieza por aquí".
+- ✅ Favoritos independientes del avance (corazón en tarjetas y lector) con una única fila por usuario+contenido (`academy_progress`, índice único).
+- ✅ Avance por pasos (25/50/75/100 en guías y aulas), concluir y reiniciar; el estado se deriva del porcentaje y `completed_at` se graba al concluir.
+- ✅ Categorías con su propio avance, catálogo con búsqueda y filtros por tipo, nivel y estado (URL), y página **Mi progreso** con listas por estado y avance por categoría.
+- ✅ Siembra idempotente del catálogo por slug (`ensureAcademySeed`) sin sobrescribir ediciones hechas en la base; verificado 8/32 y cargas repetidas sin duplicados.
+- ✅ API `POST /api/academia` (`open`, `setProgress`, `complete`, `reset`, `toggleFavorite`) con 401 sin sesión, 400 en operación/porcentaje inválidos y 404 en contenido no publicado.
+- ✅ Verificado: render de las 4 rutas sin errores, progreso/favoritos en base con valores exactos y aislamiento entre dos usuarios sobre el mismo contenido.
+- ✅ Contenido responsable: todo el catálogo entra como `review_status='pending'`, con badge "Contenido base · revisión pendiente", aviso de revisión editorial y disclaimer de material educativo (no asesoría).
+
+## 28. Funcionalidades pendentes
+
+- Implementação dos módulos restantes sobre o modelo de dados (notificaciones, configuración) — aguardando suas etapas.
+- Curadoria editorial da Academia: revisar o catálogo base com fontes e mudar `review_status` para `reviewed` (hoje tudo é conteúdo introdutório com revisão pendente).
 - Geração de recorrências por job/agenda (hoje a geração é idempotente sob demanda, ao abrir o módulo).
 - Integração bancária real — a importação atual é por CSV.
 - Verificação de email no registro — quando houver serviço de email configurado.
 - Ativação de novos locales/monedas LATAM — estrutura pronta.
 
-## 28. Decisões técnicas
+## 29. Decisões técnicas
 
 1. **Dinheiro = centavos inteiros na aplicação**; `numeric(18,2)` no banco.
 2. **Multi-moeda explícita:** FK `currency` em todo valor.
@@ -618,9 +667,12 @@ Paleta própria petrol + cobre sobre superfícies cálidas (tokens `@theme`): `p
 33. **i18n por dicionários tipados**; `es-MX` base.
 34. **Identidade visual própria**; tokens semânticos em `@theme`.
 35. **Responsividade total** (mobile first; dashboard em coluna única no celular).
-36. **Site público ≠ aplicativo** (`/` e `/design` públicos; produto em `/app/*` protegido).
+36. **Academia con contenido global y progreso por usuario (Etapa 19):** `academy_categories`/`academy_contents` son contenido global editable (la base de datos manda) y `academy_progress` guarda **una** fila por (usuario, contenido) con avance, estado y favorito; el estado se deriva de `progress_pct` (`statusForPct`), así que un favorito sin avance queda `pending` sin duplicar la verdad.
+37. **Catálogo educativo sembrado por slug, sin sobrescribir (Etapa 19):** `src/config/academy.ts` describe el catálogo base y `ensureAcademySeed` inserta solo lo que falta (`onConflictDoNothing`), bajo demanda, igual que las recurrencias de la Etapa 8; cualquier ajuste editorial hecho en la base se conserva.
+38. **Nada de contenido financiero complejo sin revisión (Etapa 19):** el catálogo base es introductorio y general, entra con `review_status='pending'` y `sources=null`, y la UI lo declara con badge, aviso de revisión y disclaimer de material educativo (nunca asesoría personalizada).
+39. **Site público ≠ aplicativo** (`/` e `/design` públicos; produto em `/app/*` protegido).
 
-## 29. Regras de desenvolvimento (obrigatórias)
+## 30. Regras de desenvolvimento (obrigatórias)
 
 1. Não remover funcionalidades existentes.
 2. Não substituir funcionalidades reais por mock data sem necessidade.
